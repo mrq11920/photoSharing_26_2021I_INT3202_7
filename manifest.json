@@ -1,0 +1,7 @@
+{
+  "engines": {
+    "arangodb": "^3.0.0"
+  },
+  "main": "index.js",
+  "$schema": "http://json.schemastore.org/foxx-manifest"
+}
