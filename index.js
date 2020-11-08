@@ -10,7 +10,7 @@ const {
 const collectionNameAccount = module.context.collectionName("account");
 const collectionNameImageData = module.context.collectionName("imagedata");
 const collectionNameImage = module.context.collectionName("image");
-// const collectionNameAccount = module.context.collectionName("account");
+const collectionNameTags = module.context.collectionName("tags");
 // const collectionNameAccount = module.context.collectionName("account");
 
 
@@ -24,11 +24,15 @@ if (!db._collection(collectionNameImageData)) {
 }
 let imagedataCollection = db._collection(collectionNameImageData);
 
-
 if (!db._collection(collectionNameImage)) {
   db._createDocumentCollection(collectionNameImage);
 }
 let imageCollection = db._collection(collectionNameImage);
+
+if (!db._collection(collectionNameTags)) {
+  db._createDocumentCollection(collectionNameTags);
+}
+let tagsCollection = db._collection(collectionNameTags);
 
 
 module.context.use(router);
@@ -103,6 +107,59 @@ router.post('/upload-image', function (req, res) {
           status: true
         });
 
+        //now insert to collection tags
+        for (var i in _tags) {
+          //   const query = aql `FOR img IN ${imageCollection} 
+          //   SORT img.creationtime DESC
+          //   LIMIT ${_startIndex}, 25 
+          //   RETURN img`;
+          // let _imageInfos = db._query(query).toArray();
+          let _tagName = _tags[i].trim();
+          console.log('tagName --> ' + _tagName);
+          let checkExistTagQuery = aql `FOR tagName in ${tagsCollection}
+                    FILTER tagName.tag_name == ${_tagName}
+                    return tagName`
+          let _checkExistStatus = db._query(checkExistTagQuery).toArray();
+          console.log(_checkExistStatus);
+          if(!JSON.stringify(_checkExistStatus).includes('tag_name'))
+          {
+              let insertTagQuery = aql`INSERT { tag_name:${_tagName},image_ids:[${_imageStatus._key}] } INTO ${tagsCollection}`;
+              let _insertTagStatus = db._query(insertTagQuery).toArray();
+              console.log( _insertTagStatus);
+              if(_insertTagStatus)
+              {
+                if(isDebug) console.log('INSERT TO TAG COLLECTION | success image id --> ' +_imageStatus._key);
+              }
+          }
+          else
+          {
+              let updateTagQuery = aql` FOR tagName IN ${tagsCollection}
+              FILTER tagName.tag_name == ${_tagName}
+              UPDATE tagName WITH
+              {
+                  image_ids:PUSH(tagName.image_ids,${_imageStatus._key})
+              }
+              IN ${tagsCollection}`
+              let _updateTagStatus = db._query(updateTagQuery);
+              console.log(_updateTagStatus);
+              if(_updateTagStatus)
+              {
+                if(isDebug) console.log('UPDATE TO TAG COLLECTION | success image id-->' + _imageStatus._key);
+              }
+          }
+          // FOR tagName in test_tags
+          // FILTER tagName.tag_name == "aaaaa"
+          // UPDATE tagName with
+          // {
+          //     image_ids:PUSH(tagName.image_ids,"-333333")
+          // }
+          // in test_tags
+        }
+
+        // UPDATE doc WITH {
+        //   hobbies: PUSH(doc.hobbies, "swimming")
+        // } IN users
+
       } else {
 
         res.send({
@@ -163,6 +220,7 @@ router.get('/get-image-info/:start', function (req, res) {
     let _startIndex = req.pathParams.start;
     console.log('startIndex --> ' + _startIndex);
     const query = aql `FOR img IN ${imageCollection} 
+      SORT img.creationtime DESC
       LIMIT ${_startIndex}, 25 
       RETURN img`;
     let _imageInfos = db._query(query).toArray();
@@ -170,9 +228,9 @@ router.get('/get-image-info/:start', function (req, res) {
     res.send(_imageInfos);
   })
   .pathParam('start', joi.number().required(), 'start index')
-  .response(joi.object({}).required())
-  .summary('get about 25 image info')
-  .description('use this to get 25 info and use that info to get more image!');
+  .response(joi.array().required())
+  .summary('Get about 25 image info')
+  .description('Use this to get 25 image info and use that info to get more image!');
 
 // FOR u IN users
 // SORT u.firstName, u.lastName, u.id DESC
