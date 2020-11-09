@@ -121,31 +121,26 @@ router.post('/upload-image', function (req, res) {
                     return tagName`
           let _checkExistStatus = db._query(checkExistTagQuery).toArray();
           console.log(_checkExistStatus);
-          if(!JSON.stringify(_checkExistStatus).includes('tag_name'))
-          {
-              let insertTagQuery = aql`INSERT { tag_name:${_tagName},image_ids:[${_imageStatus._key}] } INTO ${tagsCollection}`;
-              let _insertTagStatus = db._query(insertTagQuery).toArray();
-              console.log( _insertTagStatus);
-              if(_insertTagStatus)
-              {
-                if(isDebug) console.log('INSERT TO TAG COLLECTION | success image id --> ' +_imageStatus._key);
-              }
-          }
-          else
-          {
-              let updateTagQuery = aql` FOR tagName IN ${tagsCollection}
+          if (!JSON.stringify(_checkExistStatus).includes('tag_name')) {
+            let insertTagQuery = aql `INSERT { tag_name:${_tagName},image_ids:[${_imageStatus._key}] } INTO ${tagsCollection}`;
+            let _insertTagStatus = db._query(insertTagQuery).toArray();
+            console.log(_insertTagStatus);
+            if (_insertTagStatus) {
+              if (isDebug) console.log('INSERT TO TAG COLLECTION | success image id --> ' + _imageStatus._key);
+            }
+          } else {
+            let updateTagQuery = aql ` FOR tagName IN ${tagsCollection}
               FILTER tagName.tag_name == ${_tagName}
               UPDATE tagName WITH
               {
                   image_ids:PUSH(tagName.image_ids,${_imageStatus._key})
               }
               IN ${tagsCollection}`
-              let _updateTagStatus = db._query(updateTagQuery);
-              console.log(_updateTagStatus);
-              if(_updateTagStatus)
-              {
-                if(isDebug) console.log('UPDATE TO TAG COLLECTION | success image id-->' + _imageStatus._key);
-              }
+            let _updateTagStatus = db._query(updateTagQuery);
+            console.log(_updateTagStatus);
+            if (_updateTagStatus) {
+              if (isDebug) console.log('UPDATE TO TAG COLLECTION | success image id-->' + _imageStatus._key);
+            }
           }
           // FOR tagName in test_tags
           // FILTER tagName.tag_name == "aaaaa"
@@ -204,17 +199,17 @@ router.get('/get-image-data/:ID', function (req, res) {
     } else {
       res.send({
         status: false,
-        description: "does not found imageID"
+        description: "does not found image data id"
       })
     }
     // res.send(imgData);
   })
-  .pathParam('ID', joi.string().required(), 'ImageID to get.')
+  .pathParam('ID', joi.string().required(), 'data_id of image to get.')
   .response(joi.object({
     "data_url": joi.string().required()
   }).required())
-  .summary('Get image from server')
-  .description('Use imageId in paramPath to get exact image on server');
+  .summary('Get image data from server')
+  .description('Use data_id of image in paramPath to get image on server');
 
 router.get('/get-image-info/:start', function (req, res) {
     let _startIndex = req.pathParams.start;
@@ -228,7 +223,7 @@ router.get('/get-image-info/:start', function (req, res) {
     res.send(_imageInfos);
   })
   .pathParam('start', joi.number().required(), 'start index')
-  .response(joi.array().required())
+  .response(joi.array().items(joi.object()))
   .summary('Get about 25 image info')
   .description('Use this to get 25 image info and use that info to get more image!');
 
@@ -236,3 +231,47 @@ router.get('/get-image-info/:start', function (req, res) {
 // SORT u.firstName, u.lastName, u.id DESC
 // LIMIT 2, 5
 // RETURN u
+
+router.get('/get-image-by-tagname/:tagName', function (req, res) {
+    let _tagName = req.pathParams.tagName.trim();
+    console.log('/get-image-by-tagname| _tagName  --> ' + _tagName);
+    const query = aql`FOR tag in ${tagsCollection}
+                      FILTER tag.tag_name == ${_tagName}
+                      RETURN tag`;
+    let _tagStatus = db._query(query).toArray();
+    console.log('/get-image-by-tagname| _tagStatus --> ');
+    console.log(_tagStatus);
+    res.send(_tagStatus);
+  })
+  .pathParam('tagName', joi.string().required(),'tag value')
+  .response(joi.array().items(joi.object({
+    tag_name:joi.string().required(),
+    image_ids:joi.array().items(joi.string())
+  })))
+  .summary('Get image_ids by tag')
+  .description('Use this to get image_ids by tagName which was sent by user');
+
+router.get('/get-image-info-by-id/:ID',function(req,res)
+{
+  let _ID = req.pathParams.ID;
+  if (isDebug) console.log('/get-image-info-by-id/:ID| ID --> ' + _ID);
+  var _imageDocument = imageCollection.document(_ID);
+  if (_imageDocument) {
+    if (isDebug) console.log('/get-image-info-by-id/:ID| found ID --> ' + _ID);
+    res.send(_imageDocument);
+  } else {
+    res.send({
+      status: false,
+      description: "does not found imageID"
+    })
+  }
+})
+.pathParam('ID', joi.string().required(), 'image_id to get.')
+.response(joi.object({
+  title:joi.string().required(),
+  data_id:joi.string().required(),
+  tags:joi.array().items(joi.string()),
+  creationtime:joi.number().required()
+}))
+.summary('Get image infomation from server')
+.description('Use image id in paramPath to get image infomation on server');
