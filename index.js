@@ -7,17 +7,17 @@ const {
   db,
   aql
 } = require("@arangodb");
-const collectionNameAccount = module.context.collectionName("account");
+// const collectionNameAccount = module.context.collectionName("account");
 const collectionNameImageData = module.context.collectionName("imagedata");
 const collectionNameImage = module.context.collectionName("image");
 const collectionNameTags = module.context.collectionName("tags");
 // const collectionNameAccount = module.context.collectionName("account");
 
 
-if (!db._collection(collectionNameAccount)) {
-  db._createDocumentCollection(collectionNameAccount);
-}
-let accountCollection = db._collection(collectionNameAccount);
+// if (!db._collection(collectionNameAccount)) {
+//   db._createDocumentCollection(collectionNameAccount);
+// }
+// let accountCollection = db._collection(collectionNameAccount);
 
 if (!db._collection(collectionNameImageData)) {
   db._createDocumentCollection(collectionNameImageData);
@@ -34,6 +34,12 @@ if (!db._collection(collectionNameTags)) {
 }
 let tagsCollection = db._collection(collectionNameTags);
 
+tagsCollection.ensureIndex({
+  type: "persistent",
+  fields: ["tag_name"],
+  unique: true,
+  sparse: true
+});
 
 module.context.use(router);
 router.use((req, res, next) => {
@@ -41,45 +47,43 @@ router.use((req, res, next) => {
   res.set("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
   next();
 });
-
-router.get('/hello-world', function (req, res) {
-    res.send('Hello World!');
-  })
-  .response(['text/plain'], 'A generic greeting.')
-  .summary('Generic greeting')
-  .description('Prints a generic greeting.');
-
 const joi = require('joi');
 
-// router.use()
-
-router.get('/hello/:name', function (req, res) {
-    res.send(`Hello ${req.pathParams.name}`);
-  })
-  .pathParam('name', joi.string().required(), 'Name to greet.')
-  .response(['text/plain'], 'A personalized greeting.')
-  .summary('Personalized greeting')
-  .description('Prints a personalized greeting.');
+// router.get('/hello-world', function (req, res) {
+//     res.send('Hello World!');
+//   })
+//   .response(['text/plain'], 'A generic greeting.')
+//   .summary('Generic greeting')
+//   .description('Prints a generic greeting.');
 
 
-router.post('/sum', function (req, res) {
-    const values = req.body.values;
-    res.send({
-      result: values.reduce(function (a, b) {
-        return a + b;
-      }, 0)
-    });
-  })
-  .body(joi.object({
-    values: joi.array().items(joi.number().required()).required()
-  }).required(), 'Values to add together.')
-  .response(joi.object({
-    result: joi.number().required()
-  }).required(), 'Sum of the input values.')
-  .summary('Add up numbers')
-  .description('Calculates the sum of an array of number values.');
+// // router.use()
+
+// router.get('/hello/:name', function (req, res) {
+//     res.send(`Hello ${req.pathParams.name}`);
+//   })
+//   .pathParam('name', joi.string().required(), 'Name to greet.')
+//   .response(['text/plain'], 'A personalized greeting.')
+//   .summary('Personalized greeting')
+//   .description('Prints a personalized greeting.');
 
 
+// router.post('/sum', function (req, res) {
+//     const values = req.body.values;
+//     res.send({
+//       result: values.reduce(function (a, b) {
+//         return a + b;
+//       }, 0)
+//     });
+//   })
+//   .body(joi.object({
+//     values: joi.array().items(joi.number().required()).required()
+//   }).required(), 'Values to add together.')
+//   .response(joi.object({
+//     result: joi.number().required()
+//   }).required(), 'Sum of the input values.')
+//   .summary('Add up numbers')
+//   .description('Calculates the sum of an array of number values.');
 
 router.post('/upload-image', function (req, res) {
     let _imageDataUrl = req.body.imgDataUrl;
@@ -223,7 +227,7 @@ router.get('/get-image-info/:start', function (req, res) {
     res.send(_imageInfos);
   })
   .pathParam('start', joi.number().required(), 'start index')
-  .response(joi.array().items(joi.object()))
+  .response(joi.array().items(joi.object().required()))
   .summary('Get about 25 image info')
   .description('Use this to get 25 image info and use that info to get more image!');
 
@@ -235,7 +239,7 @@ router.get('/get-image-info/:start', function (req, res) {
 router.get('/get-image-by-tagname/:tagName', function (req, res) {
     let _tagName = req.pathParams.tagName.trim();
     console.log('/get-image-by-tagname| _tagName  --> ' + _tagName);
-    const query = aql`FOR tag in ${tagsCollection}
+    const query = aql `FOR tag in ${tagsCollection}
                       FILTER tag.tag_name == ${_tagName}
                       RETURN tag`;
     let _tagStatus = db._query(query).toArray();
@@ -243,35 +247,34 @@ router.get('/get-image-by-tagname/:tagName', function (req, res) {
     console.log(_tagStatus);
     res.send(_tagStatus);
   })
-  .pathParam('tagName', joi.string().required(),'tag value')
+  .pathParam('tagName', joi.string().required(), 'tag value')
   .response(joi.array().items(joi.object({
-    tag_name:joi.string().required(),
-    image_ids:joi.array().items(joi.string())
+    tag_name: joi.string().required(),
+    image_ids: joi.array().items(joi.string())
   })))
   .summary('Get image_ids by tag')
   .description('Use this to get image_ids by tagName which was sent by user');
 
-router.get('/get-image-info-by-id/:ID',function(req,res)
-{
-  let _ID = req.pathParams.ID;
-  if (isDebug) console.log('/get-image-info-by-id/:ID| ID --> ' + _ID);
-  var _imageDocument = imageCollection.document(_ID);
-  if (_imageDocument) {
-    if (isDebug) console.log('/get-image-info-by-id/:ID| found ID --> ' + _ID);
-    res.send(_imageDocument);
-  } else {
-    res.send({
-      status: false,
-      description: "does not found imageID"
-    })
-  }
-})
-.pathParam('ID', joi.string().required(), 'image_id to get.')
-.response(joi.object({
-  title:joi.string().required(),
-  data_id:joi.string().required(),
-  tags:joi.array().items(joi.string()),
-  creationtime:joi.number().required()
-}))
-.summary('Get image infomation from server')
-.description('Use image id in paramPath to get image infomation on server');
+router.get('/get-image-info-by-id/:ID', function (req, res) {
+    let _ID = req.pathParams.ID;
+    if (isDebug) console.log('/get-image-info-by-id/:ID| ID --> ' + _ID);
+    var _imageDocument = imageCollection.document(_ID);
+    if (_imageDocument) {
+      if (isDebug) console.log('/get-image-info-by-id/:ID| found ID --> ' + _ID);
+      res.send(_imageDocument);
+    } else {
+      res.send({
+        status: false,
+        description: "does not found image id"
+      })
+    }
+  })
+  .pathParam('ID', joi.string().required(), 'image_id to get.')
+  .response(joi.object({
+    title: joi.string().required(),
+    data_id: joi.string().required(),
+    tags: joi.array().items(joi.string()),
+    creationtime: joi.number().required()
+  }))
+  .summary('Get image infomation from server')
+  .description('Use image id in paramPath to get image infomation on server');
