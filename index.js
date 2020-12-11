@@ -187,8 +187,8 @@ router.post('/remove-image-by-data-id', function (req, res) {
       let removeImageInfoQuery = aql `FOR image in ${imageCollection}
     FILTER image.data_id == ${_data_id}
     REMOVE image in ${imageCollection}
-    return removed`;
-      let _removeImageInfoStatus = db._query(removeImageInfoQuery).toArray();
+    return OLD`;
+      let _removeImageInfoStatus = db._query(removeImageInfoQuery).toArray()[0];
       if (isDebug) console.log('/remove-image-by-data-id |_removeImageInfoStatus --> ' + _removeImageInfoStatus);
       if (JSON.stringify(_removeImageInfoStatus).includes('tags')) {
         var _tags = _removeImageInfoStatus.tags;
@@ -206,7 +206,7 @@ router.post('/remove-image-by-data-id', function (req, res) {
             console.log('index --> ' + index);
             if (index > -1) {
               _getImage[0].image_ids.splice(index, 1);
-              var _updateStatus = db._query(aql`UPDATE {_key:${_getImage[0]._key},image_ids:${_getImage[0].image_ids}}`).toArray();
+              var _updateStatus = db._query(aql`UPDATE {_key:${_getImage[0]._key},image_ids:${JSON.stringify(_getImage[0].image_ids)}} IN ${tagsCollection}`).toArray();
               if(isDebug) console.log('updateStatus --> fs');
               if(isDebug) console.log(_updateStatus);
             }
