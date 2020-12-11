@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+
+<head></head>
+
+<body>
+    <style>
+        label {
+            float: left;
+            padding-right: 10px;
+        }
+    </style>
+    <label for='username'>username: </label>
+    <input id='username'>
+    <br>
+    <label for='password'>password: </label>
+    <input id='password'>
+    <br>
+    <button id='login'>Login</button>
+    <script>
+        document.getElementById('login').addEventListener('click', signupNow);
+
+        function signupNow() {
+            var body = {
+                username: document.getElementById('username').value,
+                password: document.getElementById('password').value
+            };
+
+            var xhttp = new XMLHttpRequest();
+            xhttp.open('POST', 'http://localhost:8529/_db/_system/api/login')
+            xhttp.send(JSON.stringify(body));
+            xhttp.onreadystatechange = function () {
+                if (xhttp.readyState == 4) {
+                    alert(xhttp.responseText);
+                    location.reload();
+                }
+            }
+            // console.log(body);
+
+        }
+    </script>
+</body>
+
+</html>

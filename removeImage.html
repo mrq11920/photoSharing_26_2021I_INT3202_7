@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+
+<head></head>
+
+<body>
+    <style>
+        label {
+            float: left;
+            padding-right: 10px;
+        }
+    </style>
+    <label for='data_id'>data_id: </label>
+    <input id='data_id'>
+    <br>
+    <button id='remove'>Remove</button>
+    <script>
+        document.getElementById('remove').addEventListener('click', signupNow);
+
+        function signupNow() {
+            var body = {
+                data_id: document.getElementById('data_id').value
+            };
+
+            var xhttp = new XMLHttpRequest();
+            xhttp.open('POST', 'http://localhost:8529/_db/_system/api/remove-image-by-data-id')
+            xhttp.send(JSON.stringify(body));
+            xhttp.onreadystatechange = function () {
+                if (xhttp.readyState == 4) {
+                    alert(xhttp.responseText);
+                    location.reload();
+                }
+            }
+            // console.log(body);
+
+        }
+    </script>
+</body>
+
+</html>

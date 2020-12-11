@@ -11,6 +11,7 @@ const {
 const collectionNameImageData = module.context.collectionName("imagedata");
 const collectionNameImage = module.context.collectionName("image");
 const collectionNameTags = module.context.collectionName("tags");
+const collectionAccount = module.context.collectionName('account')
 // const collectionNameAccount = module.context.collectionName("account");
 
 
@@ -34,12 +35,23 @@ if (!db._collection(collectionNameTags)) {
 }
 let tagsCollection = db._collection(collectionNameTags);
 
+if (!db._collection(collectionAccount)) {
+  db._createDocumentCollection(collectionAccount);
+}
+let accountCollection = db._collection(collectionAccount);
+
 tagsCollection.ensureIndex({
   type: "persistent",
   fields: ["tag_name"],
   unique: true,
   sparse: true
 });
+tagsCollection.ensureIndex({
+  type: "fulltext",
+  fields: ["tag_name"],
+  unique: true,
+  sparse: true
+})
 
 module.context.use(router);
 router.use((req, res, next) => {
@@ -84,6 +96,147 @@ const joi = require('joi');
 //   }).required(), 'Sum of the input values.')
 //   .summary('Add up numbers')
 //   .description('Calculates the sum of an array of number values.');
+function validateEmail(email) {
+  const re = /^(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
+  return re.test(String(email).toLowerCase());
+}
+
+function checkUsernameInDatabase(username) {
+  let checkExistUsername = aql `FOR account in ${accountCollection}
+                    FILTER account.username == ${username}
+                    return account`
+  let _checkExistStatus = db._query(checkExistUsername).toArray();
+  console.log('fucntion checkUsernameInDatabase empty mean false');
+  console.log(_checkExistStatus)
+  if (JSON.stringify(_checkExistStatus).includes('username')) return _checkExistStatus[0];
+  else return false;
+}
+router.post('/signup', function (req, res) {
+    if (isDebug) console.log('/signup | body --> email: ' + req.body.email + ', username: ' + req.body.username + ', password: ' + req.body.password);
+    var usernameRegex = /^[a-zA-Z0-9]+$/;
+    var isusernameValid = usernameRegex.test(req.body.username);
+    console.log('/signup | isusernameValid --> ' + isusernameValid);
+    var isemailValid = validateEmail(req.body.email);
+    console.log('/signup | isemailValid --> ' + isemailValid);
+    if (isusernameValid && isemailValid) {
+      // check for
+      var _exist = checkUsernameInDatabase(req.body.username);
+      if (!_exist) {
+        var _status = accountCollection.save({
+          email: req.body.email,
+          username: req.body.username,
+          password: req.body.password
+        });
+        res.send(JSON.stringify(_status));
+      } else {
+        res.send({
+          status: false,
+          description: "username already existed"
+        })
+      }
+    } else {
+      res.send({
+        status: false,
+        description: "username or email is invalid!"
+      })
+    }
+  })
+  .body(joi.object({
+    email: joi.string().required(),
+    username: joi.string().required(),
+    password: joi.string().required()
+  }).required(), 'json of a account')
+  .response(joi.object({
+    status: joi.boolean().required(),
+    description: joi.string().required()
+  }).required())
+  .summary('signup API')
+  .description('Validate username and email if success then add it to database else return error');
+
+router.post("/login", function (req, res) {
+    var _exist = checkUsernameInDatabase(req.body.username);
+    console.log('/login | ');
+    if (isDebug) console.log('username --> ' + req.body.username + ', password --> ' + req.body.password);
+    console.log(_exist);
+    if (_exist && _exist.password == req.body.password) {
+      res.send({
+        status: true,
+        description: "login successfully"
+      })
+    } else
+      res.send({
+        status: false,
+        description: "username or password is wrong"
+      })
+  })
+  .body(joi.object({
+    username: joi.string().required(),
+    password: joi.string().required()
+  }).required(), 'username and password')
+  .response(joi.object({
+    status: joi.boolean().required(),
+    description: joi.string().required()
+  }).required())
+  .summary('login API')
+  .description('check for username and check password for login');
+
+router.post('/remove-image-by-data-id', function (req, res) {
+    var _data_id = req.body.data_id;
+    console.log('/remove-image-by-data-id ---------------------');
+    if (_data_id) {
+      let removeImageInfoQuery = aql `FOR image in ${imageCollection}
+    FILTER image.data_id == ${_data_id}
+    REMOVE image in ${imageCollection}
+    return removed`;
+      let _removeImageInfoStatus = db._query(removeImageInfoQuery).toArray();
+      if (isDebug) console.log('/remove-image-by-data-id |_removeImageInfoStatus --> ' + _removeImageInfoStatus);
+      if (JSON.stringify(_removeImageInfoStatus).includes('tags')) {
+        var _tags = _removeImageInfoStatus.tags;
+        console.log('tags --> ');
+        console.log(_tags);
+        var _image_id = _removeImageInfoStatus._key;
+        console.log('image Id --> ' + _image_id);
+        for (var i = 0; i < _tags.length; i++) {
+          var _tag_name = _tags[i];
+          console.log('_tag_name --> ' + _tag_name);
+          var _getImage = db._query(aql `FOR tag in ${tagsCollection} FILTER tag.tag_name == ${_tag_name} return tag`).toArray();
+
+          if (_getImage[0]) {
+            var index = _getImage[0].image_ids.indexOf(_image_id);
+            console.log('index --> ' + index);
+            if (index > -1) {
+              _getImage[0].image_ids.splice(index, 1);
+              var _updateStatus = db._query(aql`UPDATE {_key:${_getImage[0]._key},image_ids:${_getImage[0].image_ids}}`).toArray();
+              if(isDebug) console.log('updateStatus --> fs');
+              if(isDebug) console.log(_updateStatus);
+            }
+          }
+          else console.log('error in get image!!!');
+        }
+      }
+      let removeImageDataQuery = aql `REMOVE {_key:${_data_id}} in ${imagedataCollection}`;
+      let _removeImageDataStatus = db._query(removeImageDataQuery).toArray();
+      if (isDebug) console.log('/remove-image-by-data-id | _removeImageDataStatus --> ' + _removeImageDataStatus);
+      res.send({
+        status: true,
+        description: "done remove data_id " + _data_id + " in server"
+      })
+    } else {
+      res.send({
+        status: false,
+        description: "image data_id must not empty"
+      })
+    }
+  })
+  .body(joi.object({
+    data_id: joi.string().required()
+  }).required(), 'image data_id to remove')
+  .response(joi.object({
+    status: joi.boolean().required(),
+    description: joi.string().required()
+  }).required())
+  .summary('remove image by data_id API')
+  .description('use image_id in body to remove image-info in imageCollection and data in imagedata');
 
 router.post('/upload-image', function (req, res) {
     let _imageDataUrl = req.body.imgDataUrl;

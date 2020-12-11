@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+
+<head></head>
+
+<body>
+    <style>
+        label {
+            float: left;
+            padding-right: 10px;
+        }
+    </style>
+    <label for='email'>email: </label>
+    <input id='email'>
+    <br>
+    <label for='username'>username: </label>
+    <input id='username'>
+    <br>
+    <label for='password'>password: </label>
+    <input id='password'>
+    <br>
+    <button id='test'>Signup</button>
+    <script>
+        document.getElementById('test').addEventListener('click', signupNow);
+
+        function signupNow() {
+            var body = {
+                email: document.getElementById('email').value,
+                username: document.getElementById('username').value,
+                password: document.getElementById('password').value
+            };
+
+            var xhttp = new XMLHttpRequest();
+            xhttp.open('POST', 'http://localhost:8529/_db/_system/api/signup')
+            xhttp.send(JSON.stringify(body));
+            xhttp.onreadystatechange = function () {
+                if (xhttp.readyState == 4) {
+                    alert(xhttp.responseText);
+                    location.reload();
+                }
+            }
+            // console.log(body);
+
+        }
+    </script>
+</body>
+
+</html>
