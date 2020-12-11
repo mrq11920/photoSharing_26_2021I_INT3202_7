@@ -1,0 +1,118 @@
+<html>
+<header>
+    <meta charset="UTF-8">
+</header>
+
+<body onload="document.imageForm.reset()">
+    <form name="imageForm" id="formUpload" action="" onsubmit="">
+        <label for="file" style="cursor: pointer;">Upload Image</label>
+        <input type="file" accept="image/*" name="image" id="file" onchange="loadFile(event)">
+        <!-- <img id="origin" src=""> -->
+        <div>
+            <img id="resize" src="">
+        </div>
+        <div>
+            <label>title: </label>
+            <input type="text" id="title">
+        </div>
+        <div>
+            <label>tags: </label>
+            <input type="text" id="tags">
+        </div>
+        <div>
+            <button type="button" onclick="uploadImage()">Upload</button>
+        </div>
+    </form>
+    <script>
+        var isDebug = false;
+        function uploadImage() {
+            var imgDataUrl = document.getElementById('resize').src;
+            if (!imgDataUrl) {
+                console.log("uploadImage --> empty image!");
+                return;
+            }
+            var _title = document.getElementById('title').value || "default title!";
+            var _tags = document.getElementById('tags').value.split(',');
+            var imgObject = {
+                title: _title,
+                imgDataUrl: imgDataUrl,
+                tags: _tags
+            };
+            console.log('uploadImage--> start to send file');
+            var xhttp = new XMLHttpRequest();
+            if(isDebug)
+                xhttp.open('POST', 'http://localhost:8529/_db/_system/test/upload-image');
+            else 
+            xhttp.open('POST', 'https://9143c7a43b0d.arangodb.cloud:8529/_db/_system/api/upload-image');
+            xhttp.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
+            xhttp.onreadystatechange = function () { //Call a function when the state changes.
+                if (xhttp.readyState == 4) {
+                    alert(xhttp.responseText);
+                    location.reload();
+                }
+                console.log(xhttp.responseText);
+            }
+            var json = JSON.stringify(imgObject);
+            console.log("uploadImage --> " + json);
+            xhttp.send(json);
+        }
+        var loadFile = function (evt) {
+            // evt.stopPropagation();
+            // evt.preventDefault();
+
+            // FileList object.
+            var files = evt.target.files;
+
+            var file = files[0];
+
+            var fileReader = new FileReader();
+
+
+            fileReader.onloadend = function (progressEvent) {
+                var url = fileReader.result;
+
+                // Something like: data:image/png;base64,iVBORw...Ym57Ad6m6uHj96js
+                console.log(url);
+                //
+                // var myImg = document.getElementById("origin");
+                // myImg.src = url;
+
+                var resize = document.getElementById('resize');
+                var downScale = downscaleImage(url, 900, "image/jpeg");
+                resize.src = downScale;
+                console.log(downScale);
+            }
+            // Read file asynchronously.
+            fileReader.readAsDataURL(file); // fileReader.result -> URL.
+        };
+
+        function downscaleImage(dataUrl, newWidth, imageType, imageArguments) {
+            var image, oldWidth, oldHeight, newHeight, canvas, ctx, newDataUrl;
+
+            // Provide default values
+            imageType = imageType || "image/jpeg";
+            imageArguments = imageArguments || 0.7;
+
+            // Create a temporary image so that we can compute the height of the downscaled image.
+            image = new Image();
+            image.src = dataUrl;
+            oldWidth = image.width;
+            oldHeight = image.height;
+            newHeight = Math.floor(oldHeight / oldWidth * newWidth)
+
+            // Create a temporary canvas to draw the downscaled image on.
+            canvas = document.createElement("canvas");
+            canvas.width = newWidth;
+            canvas.height = newHeight;
+
+            // Draw the downscaled image on the canvas and return the new data URL.
+            ctx = canvas.getContext("2d");
+            ctx.drawImage(image, 0, 0, newWidth, newHeight);
+            newDataUrl = canvas.toDataURL(imageType, imageArguments);
+            return newDataUrl;
+        }
+    </script>
+
+</body>
+
+</html>

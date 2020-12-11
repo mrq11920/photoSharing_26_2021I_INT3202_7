@@ -1,0 +1,119 @@
+<html>
+<header>
+    <meta charset="UTF-8">
+</header>
+
+<body>
+    <div>
+        <input type="text" id='tagName'>
+    </div>
+    <div>
+        <button type="button" onclick="run()">Search</button>
+    </div>
+    <script>
+        let isDebug = true;
+
+	function run()
+	{
+		removeAllImgElement();
+		getImageInfoByTag();
+	}
+
+	function removeAllImgElement()
+	{
+		var allImgElements = document.getElementsByTagName('img');
+		for(var i= allImgElements.length-1; i>=0 ;i--)
+		{
+			allImgElements[i].remove();
+		}
+	}
+
+        function getImageInfoByTag() {
+            let _tagName = document.getElementById('tagName').value;
+            console.log('_tagName --> ' + _tagName);
+            if (_tagName) {
+                let xhttp = new XMLHttpRequest();
+                if (isDebug)
+                    xhttp.open('GET', 'http://localhost:8529/_db/_system/test/get-image-by-tagname/' + _tagName);
+                else
+                    xhttp.open('GET', 'https://9143c7a43b0d.arangodb.cloud:8529/_db/_system/api/get-image-by-tagname/' +
+                        _tagName);
+                xhttp.send(null);
+                xhttp.onreadystatechange = function () {
+                    if (xhttp.readyState == 4) {
+                        console.log(xhttp.responseText);
+                        console.log('----------------------------');
+                        if (xhttp.responseText.includes('image_ids')) {
+                            let _imageIDs = JSON.parse(xhttp.responseText)[0].image_ids;
+                            console.log('imageIDS --> ');
+                            console.log(_imageIDs);
+                            for (let index in _imageIDs) {
+                                let _imgID = _imageIDs[index];
+                                console.log('_imageID --> ' + _imageIDs);
+                                getImageInfomationByID(_imgID);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        function getImageInfomationByID(imgID) {
+            console.log('getImageInfomationByID| imgID -->' + imgID);
+            let xhttp = new XMLHttpRequest();
+            if (isDebug)
+                xhttp.open('GET', 'http://localhost:8529/_db/_system/test/get-image-info-by-id/' + imgID);
+            else
+                xhttp.open('GET', 'https://9143c7a43b0d.arangodb.cloud:8529/_db/_system/api/get-image-info-by-id/' +
+                    imgID);
+            xhttp.send(null);
+            xhttp.onreadystatechange = function () {
+                if (xhttp.readyState == 4) {
+                    console.log(xhttp.responseText);
+                    console.log('----------------------------');
+                    if (xhttp.responseText.includes('data_id')) {
+                        let _imgInfo = JSON.parse(xhttp.responseText);
+                        let _imgElement = document.createElement('img');
+                        let _imgDataID = _imgInfo.data_id;
+                        let _tags = _imgInfo.tags.join(',');
+                        console.log(_imgInfo);
+                        console.log(_imgDataID);
+                        console.log(_tags);
+                        console.log('-------------------------------');
+                        _imgElement.id = _imgDataID;
+                        _imgElement.title = _imgInfo.title;
+                        _imgElement.tagName = _tags;
+                        document.body.appendChild(_imgElement);
+                        getImageData(_imgDataID);
+                    }
+                }
+            }
+        }
+
+        function getImageData(imgDataID) {
+            var http = new XMLHttpRequest();
+            if (isDebug)
+                http.open('GET', 'http://localhost:8529/_db/_system/test/get-image-data/' + imgDataID);
+            else
+                http.open('GET',
+                    'https://9143c7a43b0d.arangodb.cloud:8529/_db/_system/api/get-image-data/' + imgDataID);
+
+            http.send(null);
+            http.onreadystatechange = function () {
+                if (http.readyState == 4) {
+                    if (http.responseText.includes('data_url')) {
+                        console.log(http.responseText);
+                        console.log('---------------------------------------');
+                        let jsonObject = JSON.parse(http.responseText);
+                        var _imgElement = document.getElementById(jsonObject._key);
+                        if (_imgElement) {
+                            _imgElement.setAttribute('src', jsonObject.data_url);
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+</body>
+
+</html>

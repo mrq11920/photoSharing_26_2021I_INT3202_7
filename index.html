@@ -1,0 +1,73 @@
+<html>
+<header>
+    <meta charset="UTF-8">
+</header>
+
+<body>
+
+    <script>
+        var isDebug = true;
+        getImageStartAt(0);
+
+        function getImageStartAt(start) {
+            var xhttp = new XMLHttpRequest();
+            if (isDebug)
+                xhttp.open('GET', 'http://localhost:8529/_db/_system/test/get-image-info/' + start);
+            else
+                xhttp.open('GET', 'https://9143c7a43b0d.arangodb.cloud:8529/_db/_system/api/get-image-info/' + start);
+
+            xhttp.send(null);
+            xhttp.onreadystatechange = function () {
+                if (xhttp.readyState == 4) {
+                    if (xhttp.responseText.includes('data_id')) {
+                        var json = JSON.parse(xhttp.responseText);
+                        console.log(json);
+                        for (var index in json) {
+                            let _imgInfo = json[index];
+                            let _imgElement = document.createElement('img');
+                            let _imgDataID = _imgInfo.data_id;
+                            let _tags = _imgInfo.tags.join(',');
+                            console.log(_imgInfo);
+                            console.log(_imgDataID);
+                            console.log(_tags);
+                            console.log('-------------------------------');
+                            _imgElement.id = _imgDataID;
+                            _imgElement.title = _imgInfo.title;
+                            _imgElement.tagName = _tags;
+                            document.body.appendChild(_imgElement);
+                            getImageData(_imgDataID);
+                        }
+                    }
+
+
+                    // console.log(xhttp.responseText);
+                }
+            }
+        }
+        function getImageData(imgDataID) {
+            var http = new XMLHttpRequest();
+            if (isDebug)
+                http.open('GET', 'http://localhost:8529/_db/_system/test/get-image-data/' + imgDataID);
+            else
+                http.open('GET',
+                    'https://9143c7a43b0d.arangodb.cloud:8529/_db/_system/api/get-image-data/' + imgDataID);
+
+            http.send(null);
+            http.onreadystatechange = function () {
+                if (http.readyState == 4) {
+                    if (http.responseText.includes('data_url')) {
+                        console.log(http.responseText);
+                        console.log('---------------------------------------');
+                        let jsonObject = JSON.parse(http.responseText);
+                        var _imgElement = document.getElementById(jsonObject._key);
+                        if (_imgElement) {
+                            _imgElement.setAttribute('src', jsonObject.data_url);
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+</body>
+
+</html>
